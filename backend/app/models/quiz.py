@@ -1,10 +1,12 @@
-from app.extensions import db
-from datetime import datetime
 import json
+from datetime import datetime
+
+from app.extensions import db
+
 
 class Quiz(db.Model):
     __tablename__ = 'quizzes'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     creator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
@@ -14,12 +16,13 @@ class Quiz(db.Model):
     share_code = db.Column(db.String(20), unique=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
+
     # Relationships
-    questions = db.relationship('Question', backref='quiz', lazy=True, cascade='all, delete-orphan', order_by='Question.order')
+    questions = db.relationship('Question', backref='quiz', lazy=True, cascade='all, delete-orphan',
+                                order_by='Question.order')
     attempts = db.relationship('Attempt', backref='quiz', lazy=True, cascade='all, delete-orphan')
     settings = db.relationship('QuizSettings', backref='quiz', uselist=False, cascade='all, delete-orphan')
-    
+
     def to_dict(self, include_questions=False):
         data = {
             'id': self.id,
@@ -32,19 +35,19 @@ class Quiz(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-        
+
         if self.settings:
             data['settings'] = self.settings.to_dict()
-        
+
         if include_questions:
             data['questions'] = [q.to_dict() for q in self.questions]
-        
+
         return data
 
 
 class QuizSettings(db.Model):
     __tablename__ = 'quiz_settings'
-    
+
     quiz_id = db.Column(db.Integer, db.ForeignKey('quizzes.id'), primary_key=True)
     allow_ai_evaluation = db.Column(db.Boolean, default=False, nullable=False)
     time_limit = db.Column(db.Integer, nullable=True)  # in minutes
@@ -54,7 +57,7 @@ class QuizSettings(db.Model):
     randomize_answer_options = db.Column(db.Boolean, default=False, nullable=False)
     enable_anti_cheating = db.Column(db.Boolean, default=False, nullable=False)
     custom_fields = db.Column(db.Text, nullable=True)  # JSON string
-    
+
     def get_custom_fields(self):
         if self.custom_fields:
             try:
@@ -62,10 +65,10 @@ class QuizSettings(db.Model):
             except:
                 return []
         return []
-    
+
     def set_custom_fields(self, fields):
         self.custom_fields = json.dumps(fields) if fields else None
-    
+
     def to_dict(self):
         return {
             'allow_ai_evaluation': self.allow_ai_evaluation,
@@ -77,4 +80,3 @@ class QuizSettings(db.Model):
             'enable_anti_cheating': self.enable_anti_cheating,
             'custom_fields': self.get_custom_fields()
         }
-

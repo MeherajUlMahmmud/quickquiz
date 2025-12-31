@@ -1,11 +1,12 @@
+import logging
 import secrets
 import string
-import logging
+
 from app.extensions import db
 from app.models.quiz import Quiz, QuizSettings
-from flask import current_app
 
 logger = logging.getLogger(__name__)
+
 
 class QuizService:
     @staticmethod
@@ -22,17 +23,17 @@ class QuizService:
                 return code
             if attempts > 10:
                 logger.warning(f"Share code generation taking too long ({attempts} attempts)")
-    
-    def create_quiz(self, creator_id, title, description=None, is_survey=False, 
+
+    def create_quiz(self, creator_id, title, description=None, is_survey=False,
                     requires_login=False, settings=None):
         """Create a new quiz"""
-        
+
         logger.info(f"📝 Creating quiz: creator_id={creator_id}, title={title}, is_survey={is_survey}")
-        
+
         try:
             share_code = self.generate_share_code()
             logger.debug(f"Generated share_code={share_code}")
-            
+
             quiz = Quiz(
                 creator_id=creator_id,
                 title=title,
@@ -41,11 +42,11 @@ class QuizService:
                 requires_login=requires_login,
                 share_code=share_code
             )
-            
+
             db.session.add(quiz)
             db.session.flush()
             logger.debug(f"Quiz created with id={quiz.id}")
-            
+
             # Create settings
             quiz_settings = QuizSettings(
                 quiz_id=quiz.id,
@@ -57,27 +58,27 @@ class QuizService:
                 randomize_answer_options=settings.get('randomize_answer_options', False) if settings else False,
                 enable_anti_cheating=settings.get('enable_anti_cheating', False) if settings else False
             )
-            
+
             if settings and settings.get('custom_fields'):
                 quiz_settings.set_custom_fields(settings['custom_fields'])
                 logger.debug(f"Custom fields set for quiz_id={quiz.id}")
-            
+
             db.session.add(quiz_settings)
             db.session.commit()
-            
+
             logger.info(f"✅ Quiz created successfully: quiz_id={quiz.id}, share_code={share_code}")
             return quiz
         except Exception as e:
             logger.error(f"💥 Quiz creation failed: {str(e)}", exc_info=True)
             db.session.rollback()
             raise
-    
+
     def update_quiz(self, quiz, title=None, description=None, is_survey=None,
-                   requires_login=None, settings=None):
+                    requires_login=None, settings=None):
         """Update a quiz"""
-        
+
         logger.info(f"✏️ Updating quiz: quiz_id={quiz.id}")
-        
+
         try:
             updates = []
             if title is not None:
@@ -92,10 +93,10 @@ class QuizService:
             if requires_login is not None:
                 quiz.requires_login = requires_login
                 updates.append(f"requires_login={requires_login}")
-            
+
             if updates:
                 logger.debug(f"Quiz fields updated: {', '.join(updates)}")
-            
+
             if settings and quiz.settings:
                 setting_updates = []
                 if 'allow_ai_evaluation' in settings:
@@ -122,10 +123,10 @@ class QuizService:
                 if 'custom_fields' in settings:
                     quiz.settings.set_custom_fields(settings['custom_fields'])
                     setting_updates.append("custom_fields=set")
-                
+
                 if setting_updates:
                     logger.debug(f"Quiz settings updated: {', '.join(setting_updates)}")
-            
+
             db.session.commit()
             logger.info(f"✅ Quiz updated successfully: quiz_id={quiz.id}")
             return quiz
@@ -133,10 +134,10 @@ class QuizService:
             logger.error(f"💥 Quiz update failed: quiz_id={quiz.id}, error={str(e)}", exc_info=True)
             db.session.rollback()
             raise
-    
+
     def get_quiz_by_id(self, quiz_id):
         """Get a quiz by ID"""
-        
+
         logger.debug(f"🔍 Fetching quiz by id: quiz_id={quiz_id}")
         quiz = Quiz.query.get(quiz_id)
         if quiz:
@@ -144,10 +145,10 @@ class QuizService:
         else:
             logger.warning(f"⚠️ Quiz not found: quiz_id={quiz_id}")
         return quiz
-    
+
     def get_quiz_by_share_code(self, share_code):
         """Get a quiz by share code"""
-        
+
         logger.debug(f"🔍 Fetching quiz by share_code: share_code={share_code}")
         quiz = Quiz.query.filter_by(share_code=share_code).first()
         if quiz:
@@ -155,18 +156,18 @@ class QuizService:
         else:
             logger.warning(f"⚠️ Quiz not found: share_code={share_code}")
         return quiz
-    
+
     def get_user_quizzes(self, user_id):
         """Get all quizzes created by a user"""
-        
+
         logger.debug(f"🔍 Fetching quizzes for user: user_id={user_id}")
         quizzes = Quiz.query.filter_by(creator_id=user_id).order_by(Quiz.created_at.desc()).all()
         logger.info(f"Found {len(quizzes)} quiz(es) for user_id={user_id}")
         return quizzes
-    
+
     def delete_quiz(self, quiz):
         """Delete a quiz"""
-        
+
         quiz_id = quiz.id
         logger.info(f"🗑️ Deleting quiz: quiz_id={quiz_id}, title={quiz.title}")
         try:
@@ -177,4 +178,3 @@ class QuizService:
             logger.error(f"💥 Quiz deletion failed: quiz_id={quiz_id}, error={str(e)}", exc_info=True)
             db.session.rollback()
             raise
-

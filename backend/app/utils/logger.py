@@ -2,13 +2,13 @@
 Request logging middleware following industry standards.
 Logs HTTP requests with structured data including request IDs, timing, and metadata.
 """
+import json
 import logging
 import time
 import uuid
-import json
-import os
-from pathlib import Path
 from contextvars import ContextVar
+from pathlib import Path
+
 from flask import request, g, has_request_context
 
 # Context variable for trace_id
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class CustomFormatter(logging.Formatter):
     """Custom formatter that automatically adds trace_id and relative paths."""
+
     def format(self, record):
         # Convert the pathname to a relative path
         if record.pathname:
@@ -125,23 +126,23 @@ def log_request_info():
     """Log incoming request information."""
     if not has_request_context():
         return
-    
+
     # Skip logging for OPTIONS requests (CORS preflight)
     if request.method == 'OPTIONS':
         return
-    
+
     # Generate or retrieve request ID
     request_id = request.headers.get('X-Request-ID') or generate_request_id()
     g.request_id = request_id
     g.request_start_time = time.time()
-    
+
     # Set trace_id in context for automatic inclusion in all logs
     trace_id_context.set(request_id)
-    
+
     # Get request body
     request_body = get_request_body()
     query_params = dict(request.args) if request.args else None
-    
+
     # Prepare request metadata
     request_metadata = {
         'request_id': request_id,
@@ -156,7 +157,7 @@ def log_request_info():
         'content_length': request.headers.get('Content-Length'),
         'headers': sanitize_headers(dict(request.headers)),
     }
-    
+
     # Build comprehensive log message
     log_parts = [
         f"{request.method} {request.path}",
@@ -169,9 +170,9 @@ def log_request_info():
         if len(body_str) > 200:
             body_str = body_str[:200] + '...'
         log_parts.append(f"body={body_str}")
-    
+
     log_message = " | ".join(log_parts)
-    
+
     # Log request with comprehensive details (trace_id automatically included by formatter)
     logger.info(
         log_message,
@@ -191,21 +192,21 @@ def log_response_info(response):
     """Log response information."""
     if not has_request_context():
         return response
-    
+
     # Skip logging for OPTIONS requests (CORS preflight)
     if request.method == 'OPTIONS':
         return response
-    
+
     # Calculate response time
     request_id = getattr(g, 'request_id', 'unknown')
     start_time = getattr(g, 'request_start_time', time.time())
     duration_ms = (time.time() - start_time) * 1000
-    
+
     # Get response body (especially for errors)
     response_body = None
     if response.status_code >= 400:
         response_body = get_response_body(response)
-    
+
     # Prepare response metadata
     response_metadata = {
         'request_id': request_id,
@@ -215,7 +216,7 @@ def log_response_info(response):
         'content_type': response.headers.get('Content-Type'),
         'response_body': response_body,
     }
-    
+
     # Determine log level and status emoji based on status code
     if response.status_code >= 500:
         log_level = logging.ERROR
@@ -226,22 +227,22 @@ def log_response_info(response):
     else:
         log_level = logging.INFO
         status_emoji = "✅"
-    
+
     # Build comprehensive log message
     log_parts = [
         f"{status_emoji} {request.method} {request.path}",
         f"→ {response.status_code}",
         f"({round(duration_ms, 2)}ms)",
     ]
-    
+
     if response_body:
         body_str = json.dumps(response_body) if isinstance(response_body, (dict, list)) else str(response_body)
         if len(body_str) > 300:
             body_str = body_str[:300] + '...'
         log_parts.append(f"response={body_str}")
-    
+
     log_message = " | ".join(log_parts)
-    
+
     # Log response with comprehensive details (trace_id automatically included by formatter)
     logger.log(
         log_level,
@@ -257,11 +258,11 @@ def log_response_info(response):
             'metadata': response_metadata
         }
     )
-    
+
     # Add request ID to response headers
     response.headers['X-Request-ID'] = request_id
     response.headers['X-Response-Time'] = f'{round(duration_ms, 2)}ms'
-    
+
     return response
 
 
@@ -269,16 +270,16 @@ def log_exception(error):
     """Log exceptions with full context."""
     if not has_request_context():
         return
-    
+
     request_id = getattr(g, 'request_id', 'unknown')
     start_time = getattr(g, 'request_start_time', time.time())
     duration_ms = (time.time() - start_time) * 1000
-    
+
     # Get request body for context
     request_body = get_request_body()
-    
+
     error_message = f"💥 EXCEPTION in {request.method} {request.path} | {type(error).__name__}: {str(error)} | ({round(duration_ms, 2)}ms)"
-    
+
     # Log error (trace_id automatically included by formatter)
     logger.error(
         error_message,
@@ -300,18 +301,18 @@ def log_exception(error):
 
 def setup_request_logging(app):
     """Set up request logging middleware for Flask app."""
-    
+
     @app.before_request
     def before_request():
         log_request_info()
-    
+
     @app.after_request
     def after_request(response):
         result = log_response_info(response)
         # Clear trace_id context after request is processed
         trace_id_context.set(None)
         return result
-    
+
     # Log unhandled exceptions
     @app.teardown_request
     def teardown_request(exception):
@@ -319,4 +320,3 @@ def setup_request_logging(app):
             log_exception(exception)
         # Clear trace_id context after request is processed
         trace_id_context.set(None)
-

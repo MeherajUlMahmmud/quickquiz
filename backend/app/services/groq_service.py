@@ -1,5 +1,6 @@
 import json
 import logging
+
 from flask import current_app, g
 from groq import Groq
 
@@ -67,20 +68,20 @@ class GroqService:
 - Ensure the correct answer is unambiguous
 - Format: correct_answer should be a single integer (0-based index) or array [0, 2] for multiple correct answers
 - Example: If options are ["Paris", "London", "Berlin", "Madrid"] and correct is "Paris", use correct_answer: 0""",
-            
+
             'TRUE_FALSE': """TRUE/FALSE QUESTIONS:
 - Create clear, unambiguous statements that are definitively true or false
 - Avoid ambiguous or opinion-based statements
 - Format: correct_answer should be boolean true or false (or string "true"/"false")
 - Example: correct_answer: true or correct_answer: false""",
-            
+
             'FILL_BLANK': """FILL-IN-THE-BLANK QUESTIONS:
 - Create sentences with 1-3 blanks marked with [BLANK]
 - Provide clear context so the answer is unambiguous
 - Format: correct_answer should be an array of strings, one for each blank in order
 - Example: If prompt has 2 blanks, correct_answer: ["answer1", "answer2"]
 - Accept variations: provide the most common correct answer, but note acceptable alternatives if needed""",
-            
+
             'DESCRIPTIVE': """DESCRIPTIVE/ESSAY QUESTIONS:
 - Create open-ended questions that require detailed explanations
 - Questions should test understanding, analysis, or synthesis
@@ -152,26 +153,27 @@ Please create diverse, high-quality questions that thoroughly test understanding
             validated_questions = []
             for i, q in enumerate(questions):
                 if not q.get('prompt'):
-                    logger.warning(f"[{request_id[:8]}] ⚠️ Question {i+1} missing prompt, skipping")
+                    logger.warning(f"[{request_id[:8]}] ⚠️ Question {i + 1} missing prompt, skipping")
                     continue
-                
+
                 if q.get('correct_answer') is None:
-                    logger.warning(f"[{request_id[:8]}] ⚠️ Question {i+1} missing correct_answer, skipping")
+                    logger.warning(f"[{request_id[:8]}] ⚠️ Question {i + 1} missing correct_answer, skipping")
                     continue
-                
+
                 # Validate MCQ has options
                 if question_type == 'MCQ' and not q.get('options'):
-                    logger.warning(f"[{request_id[:8]}] ⚠️ MCQ question {i+1} missing options, skipping")
+                    logger.warning(f"[{request_id[:8]}] ⚠️ MCQ question {i + 1} missing options, skipping")
                     continue
-                
+
                 validated_questions.append(q)
-            
+
             if len(validated_questions) < len(questions):
                 logger.warning(
                     f"[{request_id[:8]}] ⚠️ Filtered out {len(questions) - len(validated_questions)} invalid question(s)")
-            
+
             if not validated_questions:
-                raise Exception("No valid questions were generated. All questions were missing required fields (prompt or correct_answer).")
+                raise Exception(
+                    "No valid questions were generated. All questions were missing required fields (prompt or correct_answer).")
 
             logger.info(
                 f"[{request_id[:8]}] ✅ Generated {len(validated_questions)} valid question(s) with answers")

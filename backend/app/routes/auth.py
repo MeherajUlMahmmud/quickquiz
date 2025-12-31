@@ -1,12 +1,15 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request
 from flask_cors import cross_origin
+from marshmallow import ValidationError
+
 from app.services.auth_service import AuthService
 from app.utils.decorators import token_required
+from app.utils.response import ResponseFormatter
 from app.utils.validators import RegisterSchema, LoginSchema
-from marshmallow import ValidationError
 
 bp = Blueprint('auth', __name__)
 auth_service = AuthService()
+
 
 @bp.route('/register', methods=['POST'])
 @cross_origin()
@@ -15,18 +18,26 @@ def register():
         schema = RegisterSchema()
         data = schema.load(request.json)
     except ValidationError as err:
-        return jsonify({'errors': err.messages}), 400
-    
+        return ResponseFormatter.validation_error(err.messages)
+
     result, status_code = auth_service.register(
         data['email'],
         data['password'],
         data['name']
     )
-    
+
     if 'error' in result:
-        return jsonify(result), status_code
-    
-    return jsonify(result), status_code
+        return ResponseFormatter.error(
+            message=result.get('error', 'Registration failed'),
+            status_code=status_code
+        )
+
+    # Registration successful
+    return ResponseFormatter.created(
+        data=result,
+        message="User registered successfully"
+    )
+
 
 @bp.route('/login', methods=['POST'])
 @cross_origin()
@@ -35,21 +46,31 @@ def login():
         schema = LoginSchema()
         data = schema.load(request.json)
     except ValidationError as err:
-        return jsonify({'errors': err.messages}), 400
-    
+        return ResponseFormatter.validation_error(err.messages)
+
     result, status_code = auth_service.login(
         data['email'],
         data['password']
     )
-    
+
     if 'error' in result:
-        return jsonify(result), status_code
-    
-    return jsonify(result), status_code
+        return ResponseFormatter.error(
+            message=result.get('error', 'Login failed'),
+            status_code=status_code
+        )
+
+    # Login successful
+    return ResponseFormatter.success(
+        data=result,
+        message="Login successful"
+    )
+
 
 @bp.route('/me', methods=['GET'])
 @cross_origin()
 @token_required
 def get_current_user(current_user):
-    return jsonify(current_user.to_dict()), 200
-
+    return ResponseFormatter.success(
+        data=current_user.to_dict(),
+        message="User information retrieved successfully"
+    )

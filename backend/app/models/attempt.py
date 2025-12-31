@@ -1,14 +1,17 @@
-from app.extensions import db
-from datetime import datetime
 import json
+from datetime import datetime
+
+from app.extensions import db
+
 
 class AttemptStatus:
     IN_PROGRESS = 'IN_PROGRESS'
     SUBMITTED = 'SUBMITTED'
 
+
 class Attempt(db.Model):
     __tablename__ = 'attempts'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     quiz_id = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
@@ -19,10 +22,10 @@ class Attempt(db.Model):
     score = db.Column(db.Float, nullable=True)
     total_points = db.Column(db.Float, nullable=True)
     status = db.Column(db.String(20), default=AttemptStatus.IN_PROGRESS, nullable=False)
-    
+
     # Relationships
     answers = db.relationship('Answer', backref='attempt', lazy=True, cascade='all, delete-orphan')
-    
+
     def get_participant_info(self):
         if self.participant_info:
             try:
@@ -30,10 +33,10 @@ class Attempt(db.Model):
             except:
                 return {}
         return {}
-    
+
     def set_participant_info(self, info):
         self.participant_info = json.dumps(info) if info else None
-    
+
     def to_dict(self, include_answers=False):
         data = {
             'id': self.id,
@@ -47,16 +50,16 @@ class Attempt(db.Model):
             'total_points': self.total_points,
             'status': self.status
         }
-        
+
         if include_answers:
             data['answers'] = [a.to_dict() for a in self.answers]
-        
+
         return data
 
 
 class Answer(db.Model):
     __tablename__ = 'answers'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     attempt_id = db.Column(db.Integer, db.ForeignKey('attempts.id'), nullable=False)
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
@@ -65,7 +68,7 @@ class Answer(db.Model):
     ai_feedback = db.Column(db.Text, nullable=True)
     points_earned = db.Column(db.Float, default=0.0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -77,4 +80,3 @@ class Answer(db.Model):
             'points_earned': self.points_earned,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
-
