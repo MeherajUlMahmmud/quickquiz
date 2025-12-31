@@ -69,27 +69,74 @@ def generate_questions(current_user, quiz_id):
     try:
         generated_questions = groq_service.generate_questions(prompt, question_type, count)
         
+        # Validate that all questions have required fields, especially correct_answer
+        validated_questions = []
+        for i, q_data in enumerate(generated_questions):
+            if not q_data.get('prompt'):
+                continue  # Skip questions without prompts
+            
+            # Ensure correct_answer is always provided
+            correct_answer = q_data.get('correct_answer')
+            if correct_answer is None:
+                # Log warning but try to continue - AI should have provided this
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Question {i+1} missing correct_answer, skipping")
+                continue
+            
+            # Validate question data before saving
+            is_valid, error_msg = question_service.validate_question_data(
+                question_type,
+                q_data.get('options'),
+                correct_answer
+            )
+            if not is_valid:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Question {i+1} validation failed: {error_msg}, skipping")
+                continue
+            
+            validated_questions.append(q_data)
+        
+        if not validated_questions:
+            return jsonify({'error': 'No valid questions were generated. Please try again with a different prompt.'}), 400
+        
         # Get current max order
         existing_questions = question_service.get_questions_by_quiz(quiz_id)
         max_order = max([q.order for q in existing_questions], default=-1)
         
-        # Save generated questions
+        # Save generated questions with correct answers
         saved_questions = []
-        for i, q_data in enumerate(generated_questions):
-            question = question_service.create_question(
-                quiz_id=quiz_id,
-                question_type=question_type,
-                prompt=q_data.get('prompt', ''),
-                options=q_data.get('options'),
-                correct_answer=q_data.get('correct_answer'),
-                points=q_data.get('points', 1),
-                order=max_order + 1 + i
-            )
-            saved_questions.append(question.to_dict())
+        for i, q_data in enumerate(validated_questions):
+            try:
+                question = question_service.create_question(
+                    quiz_id=quiz_id,
+                    question_type=question_type,
+                    prompt=q_data.get('prompt', ''),
+                    options=q_data.get('options'),
+                    correct_answer=q_data.get('correct_answer'),  # Always provided after validation
+                    points=q_data.get('points', 1),
+                    order=max_order + 1 + i
+                )
+                saved_questions.append(question.to_dict())
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to save question {i+1}: {str(e)}")
+                # Continue with other questions
         
-        return jsonify({'questions': saved_questions}), 201
+        if not saved_questions:
+            return jsonify({'error': 'Failed to save any questions. Please check the generated questions and try again.'}), 500
+        
+        return jsonify({
+            'questions': saved_questions,
+            'message': f'Successfully generated and saved {len(saved_questions)} question(s)'
+        }), 201
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error generating questions: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Failed to generate questions: {str(e)}'}), 500
 
 @bp.route('/quizzes/<int:quiz_id>/questions', methods=['GET'])
 def get_questions(quiz_id):
