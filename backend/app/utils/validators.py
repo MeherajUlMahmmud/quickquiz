@@ -29,6 +29,9 @@ class QuizSchema(Schema):
     time_limit = fields.Int(allow_none=True, validate=validate.Range(min=1))
     show_results_immediately = fields.Bool(load_default=True)
     allow_retake = fields.Bool(load_default=False)
+    randomize_question_order = fields.Bool(load_default=False)
+    randomize_answer_options = fields.Bool(load_default=False)
+    enable_anti_cheating = fields.Bool(load_default=False)
     custom_fields = fields.List(fields.Dict(), allow_none=True)
 
 

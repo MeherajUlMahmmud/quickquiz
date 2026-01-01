@@ -90,7 +90,7 @@ def get_quiz_by_share_code(current_user, share_code):
     )
 
 
-@bp.route('/<int:quiz_id>', methods=['PUT'])
+@bp.route('/<int:quiz_id>', methods=['PUT', 'PATCH'])
 @token_required
 def update_quiz(current_user, quiz_id):
     quiz = quiz_service.get_quiz_by_id(quiz_id)

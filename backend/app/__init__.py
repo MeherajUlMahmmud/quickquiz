@@ -123,29 +123,75 @@ def create_app(config_name='development'):
     app.config['JWT_SECRET'] = os.getenv('JWT_SECRET', 'your-secret-key')
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-flask-secret-key')
     app.config['GROQ_API_KEY'] = os.getenv('GROQ_API_KEY', '')
+    
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # Setup logging first
+    # Configure CORS - simplified and more reliable
+    allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000')
+    
+    # Parse origins
+    if allowed_origins == '*':
+        cors_origins = '*'
+        cors_credentials = False
+    else:
+        cors_origins = [origin.strip() for origin in allowed_origins.split(',') if origin.strip()]
+        cors_credentials = True
+    
+    # CRITICAL: Handle OPTIONS FIRST, before CORS initialization
+    # This ensures OPTIONS requests are handled before anything else can block them
+    @app.before_request
+    def handle_options_first():
+        """Handle OPTIONS requests FIRST, before any other middleware"""
+        if request.method == 'OPTIONS':
+            from flask import Response
+            origin = request.headers.get('Origin')
+            
+            # Check if origin is allowed
+            is_allowed = False
+            allow_origin = None
+            
+            if cors_origins == '*':
+                is_allowed = True
+                allow_origin = '*'
+            elif isinstance(cors_origins, list) and origin:
+                origin_normalized = origin.lower().rstrip('/')
+                for allowed in cors_origins:
+                    if origin_normalized == allowed.lower().rstrip('/'):
+                        is_allowed = True
+                        allow_origin = origin
+                        break
+            
+            if is_allowed and allow_origin:
+                response = Response()
+                response.status_code = 200
+                response.headers['Access-Control-Allow-Origin'] = allow_origin
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID, Accept, Origin'
+                response.headers['Access-Control-Max-Age'] = '3600'
+                if cors_credentials:
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+                return response
+    
+    # Initialize CORS - disable automatic_options since we handle it manually above
+    CORS(
+        app,
+        origins=cors_origins,
+        supports_credentials=cors_credentials,
+        allow_headers=['Content-Type', 'Authorization', 'X-Request-ID', 'Accept', 'Origin'],
+        expose_headers=['X-Request-ID', 'X-Response-Time'],
+        methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+        vary_header=True,
+        automatic_options=False  # We handle OPTIONS manually above
+    )
+
+    # Setup logging
     setup_logging(app)
 
     # Setup request logging middleware
     from app.utils.logger import setup_request_logging
     setup_request_logging(app)
-
-    # Configure CORS
-    allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS', '*')
-    cors_origins = allowed_origins.split(',') if allowed_origins != '*' else '*'
-    
-    cors = CORS(
-        app,
-        origins=cors_origins,
-        methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-        allow_headers=['Content-Type', 'Authorization', 'X-Request-ID'],
-        expose_headers=['X-Request-ID', 'X-Response-Time'],
-        supports_credentials=True
-    )
 
     # Register blueprints
     from app.routes import auth, quizzes, questions, attempts
@@ -153,5 +199,38 @@ def create_app(config_name='development'):
     app.register_blueprint(quizzes.bp, url_prefix='/api/quizzes')
     app.register_blueprint(questions.bp, url_prefix='/api/questions')
     app.register_blueprint(attempts.bp, url_prefix='/api/attempts')
+
+
+    # Add after_request handler to ensure CORS headers on all responses
+    # This runs after logger's after_request (Flask executes in reverse order)
+    @app.after_request
+    def add_cors_headers(response):
+        """Ensure CORS headers are present on all responses"""
+        origin = request.headers.get('Origin')
+        
+        if origin:
+            # Check if origin is allowed
+            is_allowed = False
+            allow_origin = None
+            
+            if cors_origins == '*':
+                is_allowed = True
+                allow_origin = '*'
+            elif isinstance(cors_origins, list):
+                origin_normalized = origin.lower().rstrip('/')
+                for allowed in cors_origins:
+                    allowed_normalized = allowed.lower().rstrip('/')
+                    if origin_normalized == allowed_normalized:
+                        is_allowed = True
+                        allow_origin = origin
+                        break
+            
+            if is_allowed and allow_origin:
+                # Add/overwrite CORS headers
+                response.headers['Access-Control-Allow-Origin'] = allow_origin
+                if cors_credentials:
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+        
+        return response
 
     return app

@@ -1,34 +1,47 @@
-import api from './api';
+import { ApiHandler } from './api';
 import { Quiz, CreateQuizData } from '../types/quiz';
+
+const getToken = (): string => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+  return token;
+};
 
 export const quizService = {
   createQuiz: async (data: CreateQuizData): Promise<Quiz> => {
-    const response = await api.post<Quiz>('/quizzes', data);
-    return response.data;
+    const token = getToken();
+    const response = await ApiHandler.sendPostRequest('/quizzes', data, token);
+    return response.data.data;
   },
 
   getQuiz: async (id: number): Promise<Quiz> => {
-    const response = await api.get<Quiz>(`/quizzes/${id}`);
-    return response.data;
+    const token = getToken();
+    const response = await ApiHandler.sendGetRequest(`/quizzes/${id}`, token);
+    return response.data.data;
   },
 
   getQuizByShareCode: async (shareCode: string): Promise<Quiz> => {
-    const response = await api.get<Quiz>(`/quizzes/share/${shareCode}`);
-    return response.data;
+    const response = await ApiHandler.sendUnauthenticatedGetRequest(`/quizzes/share/${shareCode}`);
+    return response.data.data;
   },
 
   updateQuiz: async (id: number, data: Partial<CreateQuizData>): Promise<Quiz> => {
-    const response = await api.put<Quiz>(`/quizzes/${id}`, data);
-    return response.data;
+    const token = getToken();
+    const response = await ApiHandler.sendPatchRequest(`/quizzes/${id}`, data, token);
+    return response.data.data;
   },
 
   deleteQuiz: async (id: number): Promise<void> => {
-    await api.delete(`/quizzes/${id}`);
+    const token = getToken();
+    await ApiHandler.sendDeleteRequest(`/quizzes/${id}`, token);
   },
 
   listQuizzes: async (): Promise<Quiz[]> => {
-    const response = await api.get<Quiz[]>('/quizzes');
-    return response.data;
+    const token = getToken();
+    const response = await ApiHandler.sendGetRequest('/quizzes', token);
+    return response.data.data;
   },
 };
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StartAttemptData } from '../../types/attempt';
+import { StartAttemptData } from '@/types/attempt';
 
 interface ParticipantFormProps {
   onSubmit: (data: StartAttemptData) => void;

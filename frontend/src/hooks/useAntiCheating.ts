@@ -11,6 +11,7 @@ export const useAntiCheating = ({ enabled, onViolation, maxViolations = 3 }: Ant
     const [isWarningVisible, setIsWarningVisible] = useState(false);
     const violationCountRef = useRef(0);
     const lastBlurTimeRef = useRef<number | null>(null);
+    const hiddenTimeRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!enabled) return;
@@ -51,28 +52,60 @@ export const useAntiCheating = ({ enabled, onViolation, maxViolations = 3 }: Ant
 
         // Detect tab/window switching
         const handleVisibilityChange = () => {
+            const now = Date.now();
             if (document.hidden) {
-                const now = Date.now();
-                if (lastBlurTimeRef.current && now - lastBlurTimeRef.current < 1000) {
-                    // Multiple rapid switches
+                // Page became hidden - record the time
+                hiddenTimeRef.current = now;
+                // Only count if it's been more than 500ms since last blur to avoid double counting
+                if (!lastBlurTimeRef.current || (now - lastBlurTimeRef.current) > 500) {
                     violationCountRef.current += 1;
                     setViolations(violationCountRef.current);
                     onViolation?.('tab_switch');
-                    showWarning('Tab switching detected');
+                    showWarning('Tab/window switching detected');
                 }
                 lastBlurTimeRef.current = now;
+            } else {
+                // Page became visible again - check if it was hidden for a significant time
+                if (hiddenTimeRef.current) {
+                    const hiddenDuration = now - hiddenTimeRef.current;
+                    // If hidden for more than 500ms, it's likely a window switch
+                    if (hiddenDuration > 500) {
+                        violationCountRef.current += 1;
+                        setViolations(violationCountRef.current);
+                        onViolation?.('window_switch');
+                        showWarning('Window switching detected');
+                    }
+                    hiddenTimeRef.current = null;
+                }
             }
         };
 
         const handleBlur = () => {
             const now = Date.now();
-            if (lastBlurTimeRef.current && now - lastBlurTimeRef.current < 1000) {
+            // Detect window focus loss
+            // Only count if it's been more than 500ms since last blur to avoid double counting
+            if (!lastBlurTimeRef.current || (now - lastBlurTimeRef.current) > 500) {
                 violationCountRef.current += 1;
                 setViolations(violationCountRef.current);
                 onViolation?.('window_blur');
                 showWarning('Window focus lost');
             }
             lastBlurTimeRef.current = now;
+        };
+
+        // Detect focus loss on the window itself
+        const handleFocus = () => {
+            // When window regains focus, check if it was hidden
+            if (document.hidden === false && lastBlurTimeRef.current) {
+                const now = Date.now();
+                // If focus was lost for more than 1 second, it's likely a switch
+                if ((now - lastBlurTimeRef.current) > 1000) {
+                    violationCountRef.current += 1;
+                    setViolations(violationCountRef.current);
+                    onViolation?.('window_switch');
+                    showWarning('Window switching detected');
+                }
+            }
         };
 
         // Prevent keyboard shortcuts
@@ -92,8 +125,12 @@ export const useAntiCheating = ({ enabled, onViolation, maxViolations = 3 }: Ant
         };
 
         const showWarning = (message: string) => {
+            console.log("Showing warning:", message);
             setIsWarningVisible(true);
-            setTimeout(() => setIsWarningVisible(false), 3000);
+            setTimeout(() => {
+                console.log("Hiding warning");
+                setIsWarningVisible(false);
+            }, 3000);
         };
 
         // Add event listeners
@@ -103,6 +140,7 @@ export const useAntiCheating = ({ enabled, onViolation, maxViolations = 3 }: Ant
         document.addEventListener('contextmenu', handleContextMenu);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('blur', handleBlur);
+        window.addEventListener('focus', handleFocus);
         document.addEventListener('keydown', handleKeyDown);
 
         // Cleanup
@@ -113,6 +151,7 @@ export const useAntiCheating = ({ enabled, onViolation, maxViolations = 3 }: Ant
             document.removeEventListener('contextmenu', handleContextMenu);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('blur', handleBlur);
+            window.removeEventListener('focus', handleFocus);
             document.removeEventListener('keydown', handleKeyDown);
         };
     }, [enabled, onViolation]);

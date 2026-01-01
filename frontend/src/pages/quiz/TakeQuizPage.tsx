@@ -1,22 +1,22 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { quizService } from '../services/quizzes';
-import { attemptService } from '../services/attempts';
-import { useAuth } from '../hooks/useAuth';
-import { useAntiCheating } from '../hooks/useAntiCheating';
-import { Quiz } from '../types/quiz';
-import { Attempt, Answer } from '../types/attempt';
-import { ParticipantForm } from '../components/ParticipantForm';
-import { MCQQuestion } from '../components/QuestionTypes/MCQQuestion';
-import { DescriptiveQuestion } from '../components/QuestionTypes/DescriptiveQuestion';
-import { FillBlankQuestion } from '../components/QuestionTypes/FillBlankQuestion';
-import { TrueFalseQuestion } from '../components/QuestionTypes/TrueFalseQuestion';
-import { AntiCheatingWarning } from '../components/AntiCheatingWarning';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { quizService } from '@/services/quizzes';
+import { attemptService } from '@/services/attempts';
+import { useAuth } from '@/hooks/useAuth';
+import { useAntiCheating } from '@/hooks/useAntiCheating';
+import { Quiz } from '@/types/quiz';
+import { Attempt, Answer } from '@/types/attempt';
+import { ParticipantForm } from '@/components/ParticipantForm';
+import { MCQQuestion } from '@/components/QuestionTypes/MCQQuestion';
+import { DescriptiveQuestion } from '@/components/QuestionTypes/DescriptiveQuestion';
+import { FillBlankQuestion } from '@/components/QuestionTypes/FillBlankQuestion';
+import { TrueFalseQuestion } from '@/components/QuestionTypes/TrueFalseQuestion';
+import { AntiCheatingWarning } from '@/components/AntiCheatingWarning';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ChevronLeft, ChevronRight, Clock, CheckCircle2, FileQuestion } from 'lucide-react';
 
-export const TakeQuiz: React.FC = () => {
+export const TakeQuizPage: React.FC = () => {
   const { shareCode } = useParams<{ shareCode: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -52,8 +52,9 @@ export const TakeQuiz: React.FC = () => {
         paste: 'Pasting is disabled during the quiz',
         cut: 'Cutting is disabled during the quiz',
         right_click: 'Right-click is disabled during the quiz',
-        tab_switch: 'Tab switching detected',
+        tab_switch: 'Tab/window switching detected',
         window_blur: 'Window focus lost',
+        window_switch: 'Window switching detected',
         devtools_shortcut: 'Developer tools are disabled',
         max_violations: 'Maximum violations reached. Quiz may be submitted automatically.',
       };
@@ -97,10 +98,30 @@ export const TakeQuiz: React.FC = () => {
     }
   };
 
-  const checkParticipantForm = () => {
+  const checkParticipantForm = async () => {
     if (quiz?.requires_login && !isAuthenticated) {
       navigate('/login');
       return;
+    }
+
+    // Check for existing in-progress attempt
+    if (isAuthenticated) {
+      try {
+        const userAttempts = await attemptService.getUserAttempts();
+        const existingAttempt = userAttempts.find(
+          (a) => a.quiz_id === quiz!.id && a.status === 'IN_PROGRESS'
+        );
+        if (existingAttempt) {
+          // Resume existing attempt
+          const attemptData = await attemptService.getAttempt(existingAttempt.id);
+          setAttempt(attemptData);
+          setShowParticipantForm(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to check for existing attempts:', error);
+        // Continue to start new attempt
+      }
     }
 
     if (!quiz?.requires_login) {
@@ -130,6 +151,8 @@ export const TakeQuiz: React.FC = () => {
         answersMap[ans.question_id] = ans.answer_text;
       });
       setAnswers(answersMap);
+      // Update attempt with latest answers
+      setAttempt(attemptData);
     } catch (error) {
       console.error('Failed to load answers:', error);
     }
@@ -244,9 +267,20 @@ export const TakeQuiz: React.FC = () => {
   const currentQuestion = randomizedQuestions[currentQuestionIndex];
 
   const renderQuestion = () => {
-    const answer: Answer | undefined = attempt.answers?.find(
+    // Get answer from local state first, then fall back to attempt.answers
+    const savedAnswer = attempt.answers?.find(
       (a) => a.question_id === currentQuestion.id
     );
+    const localAnswerText = answers[currentQuestion.id];
+    
+    // Create a combined answer object for the component
+    const answer: Answer | undefined = localAnswerText 
+      ? {
+          ...savedAnswer,
+          answer_text: localAnswerText,
+          question_id: currentQuestion.id,
+        } as Answer
+      : savedAnswer;
 
     const randomizeOptions = quiz.settings?.randomize_answer_options || false;
 

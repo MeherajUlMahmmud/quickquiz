@@ -5,7 +5,7 @@ from marshmallow import ValidationError
 
 from app.services.attempt_service import AttemptService
 from app.services.scoring_service import ScoringService
-from app.utils.decorators import optional_token
+from app.utils.decorators import optional_token, token_required
 from app.utils.response import ResponseFormatter
 from app.utils.validators import AttemptSchema, AnswerSchema
 
@@ -63,7 +63,7 @@ def save_answer(attempt_id):
     )
 
 
-@bp.route('/<int:attempt_id>', methods=['PUT'])
+@bp.route('/<int:attempt_id>', methods=['PUT', 'PATCH'])
 def update_attempt(attempt_id):
     try:
         schema = AttemptSchema()
@@ -116,3 +116,38 @@ def get_attempt(attempt_id):
         data=attempt.to_dict(include_answers=True),
         message="Attempt retrieved successfully"
     )
+
+
+@bp.route('/user/attempts', methods=['GET'])
+@token_required
+def get_user_attempts(current_user):
+    """Get all attempts for the current user"""
+    try:
+        attempts = attempt_service.get_user_attempts(current_user.id)
+        # Include quiz information for each attempt
+        from app.services.quiz_service import QuizService
+        quiz_service = QuizService()
+        
+        attempts_with_quiz = []
+        for attempt in attempts:
+            attempt_dict = attempt.to_dict(include_answers=False)
+            quiz = quiz_service.get_quiz_by_id(attempt.quiz_id)
+            if quiz:
+                # Calculate total points from quiz questions
+                total_points = sum(q.points for q in quiz.questions) if quiz.questions else 0
+                attempt_dict['quiz'] = {
+                    'id': quiz.id,
+                    'title': quiz.title,
+                    'description': quiz.description,
+                    'share_code': quiz.share_code,
+                    'total_points': total_points
+                }
+            attempts_with_quiz.append(attempt_dict)
+        
+        return ResponseFormatter.success(
+            data=attempts_with_quiz,
+            message="User attempts retrieved successfully"
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving user attempts: {str(e)}", exc_info=True)
+        return ResponseFormatter.server_error(f"Failed to retrieve user attempts: {str(e)}")

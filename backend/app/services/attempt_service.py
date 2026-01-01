@@ -150,3 +150,12 @@ class AttemptService:
         attempts = Attempt.query.filter_by(quiz_id=quiz_id).order_by(Attempt.started_at.desc()).all()
         logger.info(f"Found {len(attempts)} attempt(s) for quiz_id={quiz_id}")
         return attempts
+
+    def get_user_attempts(self, user_id):
+        """Get all attempts for a user"""
+
+        logger.debug(f"🔍 Fetching attempts for user: user_id={user_id}")
+
+        attempts = Attempt.query.filter_by(user_id=user_id).order_by(Attempt.started_at.desc()).all()
+        logger.info(f"Found {len(attempts)} attempt(s) for user_id={user_id}")
+        return attempts

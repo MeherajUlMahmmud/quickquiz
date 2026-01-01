@@ -1,4 +1,5 @@
-import { Question, Answer } from '../../../types/question';
+import { Question } from '@/types/question';
+import { Answer } from '@/types/attempt';
 
 interface FillBlankQuestionProps {
   question: Question;

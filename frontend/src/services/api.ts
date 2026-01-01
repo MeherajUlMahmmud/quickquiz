@@ -1,52 +1,133 @@
-import axios from 'axios';
-import { API_URL, APP_ROUTES } from '../utils/constants';
+import { API_URL } from "@/utils/constants";
+import axios from "axios";
 
-/**
- * Generate a unique trace ID for request tracking
- */
-function generateTraceId(): string {
-  return crypto.randomUUID();
+export class ApiHandler {
+  static async sendAuthRequest(url: string, data: any, signal?: AbortSignal) {
+    try {
+      const response = await axios.post(API_URL + url, data, {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true,
+        signal
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async sendUnauthenticatedGetRequest(url: string) {
+    try {
+      const response = await axios.get(API_URL + url, {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async sendUnauthenticatedPostRequest(url: string, data: any) {
+    try {
+      const response = await axios.post(API_URL + url, data, {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async sendGetRequest(url: string, accessToken: string) {
+    try {
+      const response = await axios.get(API_URL + url, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async sendPostRequest(url: string, data: any, accessToken: string, hasFile = false) {
+    try {
+      const response = await axios.post(API_URL + url, data, {
+        headers: {
+          "Content-Type": hasFile ? "multipart/form-data" : "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async sendPatchRequest(url: string, data: any, accessToken: string, hasFile = false) {
+    try {
+      const response = await axios.patch(API_URL + url, data, {
+        headers: {
+          "Content-Type": hasFile ? "multipart/form-data" : "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async sendDeleteRequest(url: string, accessToken: string) {
+    try {
+      const response = await axios.delete(API_URL + url, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async sendGetExportRequest(url: string, accessToken: string) {
+    try {
+      const response = await axios.get(API_URL + url, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        withCredentials: true,
+        responseType: "blob"
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async sendPostExportRequest(url: string, data: any, accessToken: string) {
+    try {
+      const response = await axios.post(API_URL + url, data, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        withCredentials: true,
+        responseType: "blob"
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token and trace ID to requests
-api.interceptors.request.use(
-  (config) => {
-    // Add trace ID for request tracking
-    if (!config.headers['X-Request-ID']) {
-      config.headers['X-Request-ID'] = generateTraceId();
-    }
-
-    // Add authentication token if available
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Handle token expiration
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = APP_ROUTES.LOGIN;
-    }
-    return Promise.reject(error);
-  }
-);
-
-export default api;
-

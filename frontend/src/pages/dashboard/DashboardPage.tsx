@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { quizService } from '../services/quizzes';
-import { Quiz } from '../types/quiz';
-import { QuizCard } from '../components/QuizCard';
+import { quizService } from '@/services/quizzes';
+import { Quiz } from '@/types/quiz';
+import { QuizCard } from '@/components/QuizCard';
 import { Loader2, Plus, FileText } from 'lucide-react';
-import { Button } from '../components/ui/button';
+import { Button } from '@/components/ui/button';
 
-export const Dashboard: React.FC = () => {
+export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);

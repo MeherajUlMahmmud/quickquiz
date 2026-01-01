@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { quizService } from '../services/quizzes';
-import { Quiz } from '../types/quiz';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { quizService } from '@/services/quizzes';
+import { Quiz } from '@/types/quiz';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, FileQuestion, Clock, Play, AlertCircle } from 'lucide-react';
 
-export const PublicQuiz: React.FC = () => {
+export const PublicQuizPage: React.FC = () => {
   const { shareCode } = useParams<{ shareCode: string }>();
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState<Quiz | null>(null);

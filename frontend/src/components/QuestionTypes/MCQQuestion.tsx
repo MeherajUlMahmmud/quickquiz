@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Question, Answer } from '../../../types/question';
+import { Question } from '@/types/question';
+import { Answer } from '@/types/attempt';
 
 interface MCQQuestionProps {
   question: Question;
@@ -41,7 +42,7 @@ export const MCQQuestion: React.FC<MCQQuestionProps> = ({ question, answer, onCh
     }
   };
 
-  const isCorrect = answer?.is_correct;
+  // const isCorrect = answer?.is_correct;
   const correctAnswer = question.correct_answer;
 
   return (

@@ -1,5 +1,7 @@
 // Base API URL
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Use relative path in development to leverage Vite proxy (avoids CORS)
+// In production, set VITE_API_URL to full backend URL (e.g., 'https://api.example.com/api')
+export const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // App Routes (Frontend URLs)
 export const APP_ROUTES = {
@@ -10,9 +12,13 @@ export const APP_ROUTES = {
     PROFILE: '/profile',
     CREATE_QUIZ: '/quizzes/create',
     EDIT_QUIZ: (id: number | string) => `/quizzes/${id}/edit`,
+    EDIT_QUIZ_PATTERN: '/quizzes/:id/edit',
     PUBLIC_QUIZ: (shareCode: string) => `/quiz/${shareCode}`,
+    PUBLIC_QUIZ_PATTERN: '/quiz/:shareCode',
     TAKE_QUIZ: (shareCode: string) => `/quiz/${shareCode}/take`,
+    TAKE_QUIZ_PATTERN: '/quiz/:shareCode/take',
     QUIZ_RESULTS: (attemptId: number | string) => `/attempts/${attemptId}/results`,
+    QUIZ_RESULTS_PATTERN: '/attempts/:id/results',
 } as const;
 
 // API Endpoints

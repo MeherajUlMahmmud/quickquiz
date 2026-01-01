@@ -14,6 +14,13 @@ export interface Attempt {
   total_points?: number;
   status: 'IN_PROGRESS' | 'SUBMITTED';
   answers?: Answer[];
+  quiz?: {
+    id: number;
+    title: string;
+    description?: string;
+    share_code?: string;
+    total_points?: number;
+  };
 }
 
 export interface Answer {

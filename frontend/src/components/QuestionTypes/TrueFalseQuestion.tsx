@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Question, Answer } from '../../../types/question';
+import { Question } from '@/types/question';
+import { Answer } from '@/types/attempt';
 
 interface TrueFalseQuestionProps {
   question: Question;
@@ -29,7 +30,7 @@ export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({ question, 
     }
   };
 
-  const isCorrect = answer?.is_correct;
+  // const isCorrect = answer?.is_correct;
   const userAnswer = selectedAnswer === 'true' || selectedAnswer === '1';
 
   return (
@@ -60,7 +61,7 @@ export const TrueFalseQuestion: React.FC<TrueFalseQuestionProps> = ({ question, 
             <button
               key={String(value)}
               type="button"
-              onClick={() => handleChange(value ? 'true' : 'false')}
+              onClick={() => handleChange(value)}
               disabled={reviewMode}
               className={className}
             >

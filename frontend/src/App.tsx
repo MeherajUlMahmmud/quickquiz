@@ -1,60 +1,61 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './store/authContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { Toaster } from '@/components/ui/toaster';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
-import { Dashboard } from './pages/Dashboard';
-import { CreateQuiz } from './pages/CreateQuiz';
-import { EditQuiz } from './pages/EditQuiz';
-import { TakeQuiz } from './pages/TakeQuiz';
-import { QuizResults } from './pages/QuizResults';
-import { PublicQuiz } from './pages/PublicQuiz';
-import { Profile } from './pages/Profile';
+import { Toaster } from '@/components/ui/sonner';
+import { APP_ROUTES } from './utils/constants';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
+import { DashboardPage } from './pages/dashboard/DashboardPage';
+import { CreateQuizPage } from './pages/quiz/CreateQuizPage';
+import { EditQuizPage } from './pages/quiz/EditQuizPage';
+import { TakeQuizPage } from './pages/quiz/TakeQuizPage';
+import { QuizResultsPage } from './pages/quiz/QuizResultsPage';
+import { PublicQuizPage } from './pages/quiz/PublicQuizPage';
+import { ProfilePage } from './pages/profile/ProfilePage';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path={APP_ROUTES.LOGIN} element={<LoginPage />} />
+          <Route path={APP_ROUTES.REGISTER} element={<RegisterPage />} />
           <Route
-            path="/dashboard"
+            path={APP_ROUTES.DASHBOARD}
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <DashboardPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/profile"
+            path={APP_ROUTES.PROFILE}
             element={
               <ProtectedRoute>
-                <Profile />
+                <ProfilePage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/quizzes/create"
+            path={APP_ROUTES.CREATE_QUIZ}
             element={
               <ProtectedRoute>
-                <CreateQuiz />
+                <CreateQuizPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/quizzes/:id/edit"
+            path={APP_ROUTES.EDIT_QUIZ_PATTERN}
             element={
               <ProtectedRoute>
-                <EditQuiz />
+                <EditQuizPage />
               </ProtectedRoute>
             }
           />
-          <Route path="/quiz/:shareCode" element={<PublicQuiz />} />
-          <Route path="/quiz/:shareCode/take" element={<TakeQuiz />} />
-          <Route path="/attempts/:id/results" element={<QuizResults />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path={APP_ROUTES.PUBLIC_QUIZ_PATTERN} element={<PublicQuizPage />} />
+          <Route path={APP_ROUTES.TAKE_QUIZ_PATTERN} element={<TakeQuizPage />} />
+          <Route path={APP_ROUTES.QUIZ_RESULTS_PATTERN} element={<QuizResultsPage />} />
+          <Route path={APP_ROUTES.HOME} element={<Navigate to={APP_ROUTES.DASHBOARD} replace />} />
         </Routes>
         <Toaster />
       </Router>

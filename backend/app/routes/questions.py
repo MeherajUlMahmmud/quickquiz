@@ -157,7 +157,7 @@ def get_questions(quiz_id):
     )
 
 
-@bp.route('/<int:question_id>', methods=['PUT'])
+@bp.route('/<int:question_id>', methods=['PUT', 'PATCH'])
 @token_required
 def update_question(current_user, question_id):
     from app.models.question import Question

@@ -1,5 +1,4 @@
 from flask import Blueprint, request
-from flask_cors import cross_origin
 from marshmallow import ValidationError
 
 from app.services.auth_service import AuthService
@@ -11,9 +10,9 @@ bp = Blueprint('auth', __name__)
 auth_service = AuthService()
 
 
-@bp.route('/register', methods=['POST'])
-@cross_origin()
+@bp.route('/register', methods=['POST', 'OPTIONS'])
 def register():
+    # OPTIONS is handled by the global preflight handler
     try:
         schema = RegisterSchema()
         data = schema.load(request.json)
@@ -39,9 +38,9 @@ def register():
     )
 
 
-@bp.route('/login', methods=['POST'])
-@cross_origin()
+@bp.route('/login', methods=['POST', 'OPTIONS'])
 def login():
+    # OPTIONS is handled by the global preflight handler
     try:
         schema = LoginSchema()
         data = schema.load(request.json)
@@ -66,10 +65,10 @@ def login():
     )
 
 
-@bp.route('/me', methods=['GET'])
-@cross_origin()
+@bp.route('/me', methods=['GET', 'OPTIONS'])
 @token_required
 def get_current_user(current_user):
+    # OPTIONS is handled by the global preflight handler
     return ResponseFormatter.success(
         data=current_user.to_dict(),
         message="User information retrieved successfully"

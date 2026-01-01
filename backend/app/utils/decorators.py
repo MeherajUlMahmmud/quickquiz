@@ -9,6 +9,10 @@ from app.models.user import User
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        # CRITICAL: Allow OPTIONS requests to pass through without authentication
+        if request.method == 'OPTIONS':
+            return f(None, *args, **kwargs)
+        
         token = request.headers.get('Authorization')
         if not token:
             return jsonify({'message': 'Token is missing'}), 401
@@ -36,6 +40,10 @@ def optional_token(f):
 
     @wraps(f)
     def decorated(*args, **kwargs):
+        # CRITICAL: Allow OPTIONS requests to pass through
+        if request.method == 'OPTIONS':
+            return f(None, *args, **kwargs)
+        
         token = request.headers.get('Authorization')
         current_user = None
 
